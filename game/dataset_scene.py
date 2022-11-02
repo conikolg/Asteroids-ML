@@ -36,13 +36,19 @@ class DatasetScene:
             value_fn=lambda s: int(s)
         )
 
-        # Regenerate button
-        self.generate_btn = Button(
-            text="Generate",
-            rect=pygame.Rect(1000, 800, 200, 50),
+        # Regenerate buttons
+        self.test_generate_btn = Button(
+            text="Test",
+            rect=pygame.Rect(1000, 800, 100, 50),
             text_font=self.normal_font,
             on_click_fn=lambda: self.game.generate_asteroids(
                 (self.num_asteroid_textbox_min.value, self.num_asteroid_textbox_max.value))
+        )
+        self.generate_btn = Button(
+            text="Generate",
+            rect=pygame.Rect(1120, 800, 200, 50),
+            text_font=self.normal_font,
+            on_click_fn=self.generate_dataset
         )
 
     def handle_events(self, events: list[pygame.event.Event]):
@@ -50,6 +56,7 @@ class DatasetScene:
         self.num_images.handle_events(events, consume_events=False)
         self.num_asteroid_textbox_min.handle_events(events, consume_events=False)
         self.num_asteroid_textbox_max.handle_events(events, consume_events=False)
+        self.test_generate_btn.handle_events(events, consume_events=False)
         self.generate_btn.handle_events(events, consume_events=False)
 
     def update(self):
@@ -82,4 +89,8 @@ class DatasetScene:
         screen.blit(self.num_asteroid_textbox_max.render(), self.num_asteroid_textbox_max.rect)
 
         # Generate images
+        screen.blit(self.test_generate_btn.render(), self.test_generate_btn.rect)
         screen.blit(self.generate_btn.render(), self.generate_btn.rect)
+
+    def generate_dataset(self):
+        print("Generating!")

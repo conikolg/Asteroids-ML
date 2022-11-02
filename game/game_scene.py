@@ -10,8 +10,6 @@ class GameScene:
     def __init__(self):
         self.asteroids: list[Asteroid] = []
 
-        self.generate_asteroids()
-
     def handle_events(self, events: list[pygame.event.Event]):
         for event in events:
             if event.type == pygame.KEYDOWN:

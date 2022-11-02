@@ -1,4 +1,6 @@
+import io
 from datetime import datetime as dt
+from zipfile import ZipFile
 
 import numpy as np
 import pygame
@@ -54,6 +56,8 @@ class DatasetScene:
             on_click_fn=self.generate_dataset
         )
 
+        self.game.generate_asteroids((self.num_asteroid_textbox_min.value, self.num_asteroid_textbox_max.value))
+
     def handle_events(self, events: list[pygame.event.Event]):
         self.game.handle_events(events)
         self.num_images.handle_events(events, consume_events=False)
@@ -98,17 +102,33 @@ class DatasetScene:
     def generate_dataset(self):
         now = dt.now()
 
-        game: GameScene = GameScene()
-        X = np.zeros(shape=(self.num_images.value, 800, 800))
-        y = np.zeros(shape=(self.num_images.value, self.num_asteroid_textbox_min.value, 4))
+        # Create in-memory zip files while images are generated
+        in_mem_zip = io.BytesIO()
+        zip_file = ZipFile(in_mem_zip, 'w')
 
+        # Holding place for bounding box labels
+        labels = np.zeros(shape=(self.num_images.value, self.num_asteroid_textbox_min.value, 4))
+
+        # New game object to ease offloading into new thread/process
+        game: GameScene = GameScene()
         for i in range(self.num_images.value):
+            # Generate/export image
             game.generate_asteroids((self.num_asteroid_textbox_min.value, self.num_asteroid_textbox_max.value))
             img: pygame.Surface = game.render(pygame.Surface((800, 800)))
-            img_data: np.ndarray = pygame.surfarray.array2d(img)
+            img_data: io.BytesIO = io.BytesIO()
+            pygame.image.save(img, img_data, "x.png")
+            zip_file.writestr(f"img{i}.png", img_data.getvalue())
+
+            # Record label
             img_result: np.ndarray = game.bounding_boxes
+            labels[i] = img_result
 
-            X[i] = img_data
-            y[i] = img_result
+        # Save the pngs
+        zip_file.close()
+        with open('datasets/img.zip', 'wb') as zf:
+            zf.write(in_mem_zip.getvalue())
+        # Save the labels
+        np.save("datasets/lbl.npy", labels)
 
-        print(f"{X.shape=}    {y.shape=}    time: {(dt.now() - now).total_seconds()}s")
+        # Output statistics
+        print(f"{labels.shape=}    time={(dt.now() - now).total_seconds()}s")

@@ -1,3 +1,6 @@
+from datetime import datetime as dt
+
+import numpy as np
 import pygame
 
 from game.game_scene import GameScene
@@ -15,7 +18,7 @@ class DatasetScene:
         self.num_images = TextBox(
             rect=pygame.Rect(1000, 100, 150, 50),
             text_font=self.normal_font,
-            placeholder_text="10000",
+            placeholder_text="1000",
             validate_fn=lambda s: s.isnumeric(),
             value_fn=lambda s: int(s)
         )
@@ -93,4 +96,19 @@ class DatasetScene:
         screen.blit(self.generate_btn.render(), self.generate_btn.rect)
 
     def generate_dataset(self):
-        print("Generating!")
+        now = dt.now()
+
+        game: GameScene = GameScene()
+        X = np.zeros(shape=(self.num_images.value, 800, 800))
+        y = np.zeros(shape=(self.num_images.value, self.num_asteroid_textbox_min.value, 4))
+
+        for i in range(self.num_images.value):
+            game.generate_asteroids((self.num_asteroid_textbox_min.value, self.num_asteroid_textbox_max.value))
+            img: pygame.Surface = game.render(pygame.Surface((800, 800)))
+            img_data: np.ndarray = pygame.surfarray.array2d(img)
+            img_result: np.ndarray = game.bounding_boxes
+
+            X[i] = img_data
+            y[i] = img_result
+
+        print(f"{X.shape=}    {y.shape=}    time: {(dt.now() - now).total_seconds()}s")

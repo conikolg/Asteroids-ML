@@ -1,6 +1,7 @@
 import math
 import random
 
+import numpy as np
 import pygame
 
 
@@ -55,3 +56,20 @@ class Asteroid:
 
     def __str__(self):
         return self.__repr__()
+
+    @property
+    def bb(self) -> np.ndarray:
+        return self.bounding_box
+
+    @property
+    def bounding_box(self) -> np.ndarray:
+        minx = min(p.x for p in self.points)
+        miny = min(p.y for p in self.points)
+        maxx = max(p.x for p in self.points)
+        maxy = max(p.y for p in self.points)
+        return np.array([
+            minx + self.center.x,
+            miny + self.center.y,
+            maxx - minx + self.center.x,
+            maxy - miny + self.center.y
+        ])

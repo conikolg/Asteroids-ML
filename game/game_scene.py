@@ -1,5 +1,6 @@
 import random
 
+import numpy as np
 import pygame
 
 from game.asteroid import Asteroid
@@ -7,7 +8,7 @@ from game.asteroid import Asteroid
 
 class GameScene:
     def __init__(self):
-        self.shapes: list[Asteroid] = []
+        self.asteroids: list[Asteroid] = []
 
         self.generate_asteroids()
 
@@ -20,14 +21,21 @@ class GameScene:
     def update(self):
         pass
 
-    def render(self, screen: pygame.Surface):
+    def render(self, screen: pygame.Surface) -> pygame.Surface:
         screen.fill((0, 0, 0))
 
-        for asteroid in self.shapes:
+        for asteroid in self.asteroids:
             img: pygame.Surface = asteroid.draw()
             screen.blit(img, asteroid.center - pygame.Vector2(img.get_size()))
+
+        return screen
 
     def generate_asteroids(self, num_asteroids: tuple[int, int] = None):
         if num_asteroids is None:
             num_asteroids = (8, 14)
-        self.shapes = [Asteroid() for _ in range(random.randint(*num_asteroids))]
+        self.asteroids = [Asteroid() for _ in range(random.randint(*num_asteroids))]
+
+    @property
+    def bounding_boxes(self) -> np.ndarray:
+        # TODO: clip if bleeding outside the edges of the screen
+        return np.array([a.bb for a in self.asteroids])

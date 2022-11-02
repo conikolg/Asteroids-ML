@@ -23,7 +23,7 @@ class TextBox:
         self.outline_color = (0, 0, 0) if outline_color is None else outline_color
         self.outline_width = 2 if outline_width is None else outline_width
         self.text_font = pygame.font.Font(None, 24) if text_font is None else text_font
-        self.text_color = (0, 0, 0) if text_color is None else text_color
+        self.text_color = pygame.Color("black") if text_color is None else pygame.Color(text_color)
         self.validate_fn = (lambda _: True) if validate_fn is None else validate_fn
         self.value_fn = (lambda _: self._text) if value_fn is None else value_fn
 
@@ -74,7 +74,10 @@ class TextBox:
         if self._text:
             rendered_text: pygame.Surface = self.text_font.render(self._text, True, self.text_color)
         else:
-            rendered_text: pygame.Surface = self.text_font.render(self.placeholder_text, True, self.text_color)
+            rendered_text: pygame.Surface = self.text_font.render(
+                self.placeholder_text, True, self.text_color.lerp(
+                    self.active_color if self.active_color else self.inactive_color, 0.75)
+            )
         img2.blit(rendered_text, (
             img2.get_width() / 2 - rendered_text.get_width() / 2,
             img2.get_height() / 2 - rendered_text.get_height() / 2))

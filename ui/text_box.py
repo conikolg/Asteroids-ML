@@ -82,3 +82,7 @@ class TextBox:
         # Put content on top of outline image
         img.blit(img2, (self.outline_width, self.outline_width))
         return img
+
+    @property
+    def value(self):
+        return self.value_fn(self._text if self._text else self.placeholder_text)

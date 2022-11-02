@@ -27,5 +27,7 @@ class GameScene:
             img: pygame.Surface = asteroid.draw()
             screen.blit(img, asteroid.center - pygame.Vector2(img.get_size()))
 
-    def generate_asteroids(self):
-        self.shapes = [Asteroid() for _ in range(random.randint(8, 14))]
+    def generate_asteroids(self, num_asteroids: tuple[int, int] = None):
+        if num_asteroids is None:
+            num_asteroids = (8, 14)
+        self.shapes = [Asteroid() for _ in range(random.randint(*num_asteroids))]

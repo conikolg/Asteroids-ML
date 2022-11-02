@@ -2,8 +2,8 @@ import sys
 
 import pygame
 
-from game.button import Button
-from game.game_scene import GameScene
+from game.dataset_scene import DatasetScene
+from ui.button import Button
 
 
 class TitleScene:
@@ -11,9 +11,9 @@ class TitleScene:
         self.scene_manager = None
 
         def play_button_click():
-            self.scene_manager.go_to(GameScene())
+            self.scene_manager.go_to(DatasetScene())
 
-        self.play_button = Button("Play", (400, 720, 150, 75), text_font=pygame.font.Font(None, 50),
+        self.play_button = Button("Datasets", (400, 720, 200, 75), text_font=pygame.font.Font(None, 50),
                                   on_click_fn=play_button_click)
         self.quit_button = Button("Quit", (400, 720, 150, 75), text_font=pygame.font.Font(None, 50),
                                   on_click_fn=lambda: sys.exit(0))

@@ -5,8 +5,8 @@ pygame.init()
 from game.scene_manager import SceneManager
 from game.title_scene import TitleScene
 
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 800
+SCREEN_WIDTH = 1600
+SCREEN_HEIGHT = 900
 
 
 def main():

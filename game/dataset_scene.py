@@ -12,6 +12,7 @@ from ui.text_box import TextBox
 
 class DatasetScene:
     def __init__(self):
+        self.scene_manager = None
         self.game: GameScene = GameScene()
 
         self.normal_font: pygame.Font = pygame.font.Font(None, 48)
@@ -120,8 +121,7 @@ class DatasetScene:
             zip_file.writestr(f"img{i}.png", img_data.getvalue())
 
             # Record label
-            img_result: np.ndarray = game.bounding_boxes
-            labels[i] = img_result
+            labels[i]: np.ndarray = game.bounding_boxes
 
         # Save the pngs
         zip_file.close()

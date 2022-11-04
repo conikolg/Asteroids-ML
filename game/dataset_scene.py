@@ -103,10 +103,6 @@ class DatasetScene:
     def generate_dataset(self):
         now = dt.now()
 
-        # Create in-memory zip files while images are generated
-        in_mem_zip = io.BytesIO()
-        zip_file = ZipFile(in_mem_zip, 'w')
-
         # Holding place for bounding box labels
         labels = np.zeros(shape=(self.num_images.value, self.num_asteroid_textbox_min.value, 4))
 
@@ -116,17 +112,11 @@ class DatasetScene:
             # Generate/export image
             game.generate_asteroids((self.num_asteroid_textbox_min.value, self.num_asteroid_textbox_max.value))
             img: pygame.Surface = game.render(pygame.Surface((800, 800)))
-            img_data: io.BytesIO = io.BytesIO()
-            pygame.image.save(img, img_data, "x.png")
-            zip_file.writestr(f"img{i}.png", img_data.getvalue())
+            pygame.image.save(img, f"./datasets/img/img{i}.png")
 
             # Record label
             labels[i]: np.ndarray = game.bounding_boxes
 
-        # Save the pngs
-        zip_file.close()
-        with open('datasets/img.zip', 'wb') as zf:
-            zf.write(in_mem_zip.getvalue())
         # Save the labels
         np.save("datasets/lbl.npy", labels)
 

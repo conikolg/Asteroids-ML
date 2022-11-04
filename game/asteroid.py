@@ -20,10 +20,8 @@ class Asteroid:
                                                 self.core_radius // 4) if corner_radius is None else corner_radius
             angle: float = random.random() * math.pi * 2
             self.points.append(pygame.Vector2(
-                int(self.core_radius * math.cos(
-                    2 * math.pi / points_len * i) + corner_radius * math.cos(angle)),
-                int(self.core_radius * math.sin(
-                    2 * math.pi / points_len * i) + corner_radius * math.sin(angle))
+                int(self.core_radius * math.cos(2 * math.pi / points_len * i) + corner_radius * math.cos(angle)),
+                int(self.core_radius * math.sin(2 * math.pi / points_len * i) + corner_radius * math.sin(angle))
             ))
 
         minx = min(p.x for p in self.points)
@@ -31,24 +29,24 @@ class Asteroid:
         maxx = max(p.x for p in self.points)
         maxy = max(p.y for p in self.points)
 
-        self.img: pygame.Surface = pygame.Surface((
-            max(p.x for p in self.points) - minx + 2,
-            max(p.y for p in self.points) - miny + 2
-        )).convert_alpha()
+        # Recenter around 0,0
+        for p in self.points:
+            p.x -= (maxx + minx) / 2
+            p.y -= (maxy + miny) / 2
+
+        minx = min(p.x for p in self.points)
+        miny = min(p.y for p in self.points)
+        maxx = max(p.x for p in self.points)
+        maxy = max(p.y for p in self.points)
+
+        self.img: pygame.Surface = pygame.Surface((maxx - minx + 2, maxy - miny + 2)).convert_alpha()
         self.img.fill((0, 0, 0, 0))
         for i in range(len(self.points)):
-            start: pygame.Vector2 = self.points[i - 1] + pygame.Vector2(self.img.get_size()) / 2 - pygame.Vector2(
-                (maxx + minx), (maxy + miny)) / 2
-            end: pygame.Vector2 = self.points[i] + pygame.Vector2(self.img.get_size()) / 2 - pygame.Vector2(
-                (maxx + minx), (maxy + miny)) / 2
+            start: pygame.Vector2 = self.points[i - 1] + pygame.Vector2(self.img.get_size()) / 2
+            end: pygame.Vector2 = self.points[i] + pygame.Vector2(self.img.get_size()) / 2
             pygame.draw.line(self.img, (255, 255, 255), start, end)
 
-    def draw(self, debug: bool = False) -> pygame.Surface:
-        if debug:
-            img = self.img.copy()
-            pygame.draw.rect(img, (255, 0, 0), img.get_rect(), width=1)
-            return img
-
+    def draw(self) -> pygame.Surface:
         return self.img
 
     def __repr__(self):
@@ -63,13 +61,13 @@ class Asteroid:
 
     @property
     def bounding_box(self) -> np.ndarray:
+        """ Returns an array formatted as [x, y, w, h]. """
+
         minx = min(p.x for p in self.points)
         miny = min(p.y for p in self.points)
-        maxx = max(p.x for p in self.points)
-        maxy = max(p.y for p in self.points)
         return np.array([
             minx + self.center.x,
             miny + self.center.y,
-            maxx - minx + self.center.x,
-            maxy - miny + self.center.y
+            self.img.get_width(),
+            self.img.get_height()
         ])

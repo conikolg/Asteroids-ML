@@ -20,28 +20,31 @@ from util.asteroid_dataset import AsteroidDataset
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
-        # Input is 800x800
-        self.conv1 = nn.Conv2d(in_channels=1, out_channels=4, kernel_size=4, stride=4)  # Outputs 4x200x200
-        self.down_sample1 = nn.MaxPool2d(kernel_size=2, stride=2)  # Outputs 4x100x100
-        self.conv2 = nn.Conv2d(in_channels=self.conv1.out_channels, out_channels=16, kernel_size=2,
-                               stride=2)  # Outputs 16x50x50
-        self.down_sample2 = nn.MaxPool2d(kernel_size=2, stride=2)  # Outputs 16x25x25
-        self.linear1 = nn.Linear(self.conv2.out_channels * 25 * 25, 4)
+        # Input is 1x800x800
+        self.conv1 = nn.Conv2d(in_channels=1, out_channels=16, kernel_size=11, stride=5)
+        self.conv1_bn = nn.BatchNorm2d(num_features=self.conv1.out_channels)
+        self.down_sample1 = nn.MaxPool2d(kernel_size=3, stride=2)
+        self.conv2 = nn.Conv2d(in_channels=self.conv1.out_channels, out_channels=64, kernel_size=5, stride=3)
+        self.conv2_bn = nn.BatchNorm2d(num_features=self.conv2.out_channels)
+        self.down_sample2 = nn.MaxPool2d(kernel_size=3, stride=1)
+        self.linear1 = nn.Linear(self.conv2.out_channels * 23 * 23, 4)
 
-    def forward(self, x):
-        x = F.relu(self.down_sample1(self.conv1(x)))
-        x = F.relu(self.down_sample2(self.conv2(x)))
-        x = x.view(-1, 16 * 25 * 25)
+    def forward(self, x: torch.Tensor):
+        x = self.down_sample1(F.relu(self.conv1_bn(self.conv1(x))))
+        x = self.down_sample2(F.relu(self.conv2_bn(self.conv2(x))))
+        # x = self.down_sample2(F.relu(self.conv2(x)))
+        # print(x.shape)
+        x = x.view(-1, self.conv2.out_channels * 23 * 23)
         x = self.linear1(x)
         return x
 
 
-n_epochs = 1
-batch_size_train = 16
+n_epochs = 20
+batch_size_train = 8
 batch_size_test = 8
-learning_rate = 0.01
+learning_rate = 0.00001
 momentum = 0.5
-log_interval = 10
+log_interval = 2
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -50,35 +53,32 @@ dataloader = DataLoader(dataset, batch_size=batch_size_train, shuffle=True, num_
 
 network = Net()
 network.to(device)
-optimizer = optim.SGD(network.parameters(), lr=learning_rate,
-                      momentum=momentum)
+optimizer = optim.SGD(network.parameters(), lr=learning_rate)
+
 train_losses = []
 test_losses = []
 test_counter = [i * len(dataset) for i in range(n_epochs + 1)]
 
 
-def train(epoch):
+def train(epochs):
     network.train()
-    for batch_idx, (inputs, labels) in enumerate(dataloader):
-        inputs, labels = inputs.to(device), labels.to(device)
-        optimizer.zero_grad()
-        output = network(inputs)
-        loss = F.mse_loss(output, labels)
-        loss.backward()
-        optimizer.step()
-        if batch_idx % log_interval == 0:
-            print(f"Train Epoch: {epoch} "
-                  f"[{batch_idx * len(inputs)}/{len(dataloader.dataset)} "
-                  f"({100. * batch_idx / len(dataloader):.0f}%)]\t"
-                  f"Loss: {loss.item():.6f}")
-            train_losses.append(loss.item())
+    for epoch_idx in range(epochs):
+        for batch_idx, (inputs, labels) in enumerate(dataloader):
+            inputs, labels = inputs.to(device), labels.to(device)
+            optimizer.zero_grad()
+            output = network(inputs)
+            loss = F.mse_loss(output, labels)
+            loss.backward()
+            optimizer.step()
+            if batch_idx % log_interval == 0:
+                print(f"Epoch {epoch_idx + 1} "
+                      f"[{batch_idx * len(inputs)}/{len(dataloader.dataset)} "
+                      f"({100. * batch_idx / len(dataloader):.0f}%)]\t"
+                      f"Loss: {loss.item():.6f}")
+                train_losses.append(loss.item())
 
 
-def main():
-    for epoch in range(n_epochs):
-        print(f"Starting epoch {epoch}...")
-        train(epoch + 1)
-
+def test():
     # Show a random sample from the dataset
     network.eval()
     dataloader_test = DataLoader(dataset, batch_size=batch_size_test, shuffle=True, num_workers=0)
@@ -99,6 +99,11 @@ def main():
         ax_arr[idx // cols, idx % cols].add_patch(rect1)
         ax_arr[idx // cols, idx % cols].add_patch(rect2)
     plt.show()
+
+
+def main():
+    train(n_epochs)
+    test()
 
 
 if __name__ == '__main__':

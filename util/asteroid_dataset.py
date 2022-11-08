@@ -14,15 +14,16 @@ class AsteroidDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, index) -> tuple[np.ndarray, np.ndarray]:
         # Get image and convert to greyscale
-        image = Image.open(f"{self.image_dir}/img{index}.png").convert("L")
+        image: Image = Image.open(f"{self.image_dir}/img{index}.png").convert("L")
         # Transform to numpy array
-        image = np.asarray(image).astype(np.float32)
+        image_arr: np.ndarray = np.asarray(image).astype(np.float32)
         # Add the "channel" dimension
-        image = np.expand_dims(image, axis=0)
+        image_arr = np.expand_dims(image_arr, axis=0)
         # Normalize it
-        image /= 255
+        image_arr /= 255
+
         if self.transform:
-            sample = self.transform(image)
+            image_arr = self.transform(image_arr)
 
         # Get bounding boxes
         bb: np.ndarray = self.labels[index]
@@ -31,4 +32,4 @@ class AsteroidDataset(torch.utils.data.Dataset):
         # Offset bb by -1, -1... not entirely sure why. Pixel indexing difference between pygame and matplotlib?
         bb[:2] -= 1
 
-        return image, bb
+        return image_arr, bb

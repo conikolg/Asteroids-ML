@@ -12,13 +12,21 @@ class AsteroidDataset(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.labels)
 
-    def __getitem__(self, index):
-        image = np.asarray(Image.open(f"{self.image_dir}/img{index}.png").convert("L"))
+    def __getitem__(self, index) -> tuple[np.ndarray, np.ndarray]:
+        # Get image and convert to greyscale
+        image = Image.open(f"{self.image_dir}/img{index}.png").convert("L")
+        # Transform to tensor
+        image = np.asarray(image).astype(np.float32)
+        # Normalize it
+        image /= 255
         if self.transform:
             sample = self.transform(image)
 
-        # Offset by -1, -1... not entirely sure why. Pixel indexing difference between pygame and matplotlib?
+        # Get bounding boxes
         bb: np.ndarray = self.labels[index]
-        bb[:][:2] -= 1
+        # Currently, just get the one and only bounding box TODO: don't assume this
+        bb: np.ndarray = bb[0].astype(np.float32)
+        # Offset bb by -1, -1... not entirely sure why. Pixel indexing difference between pygame and matplotlib?
+        bb[:2] -= 1
 
         return image, bb

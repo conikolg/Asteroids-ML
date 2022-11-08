@@ -15,8 +15,10 @@ class AsteroidDataset(torch.utils.data.Dataset):
     def __getitem__(self, index) -> tuple[np.ndarray, np.ndarray]:
         # Get image and convert to greyscale
         image = Image.open(f"{self.image_dir}/img{index}.png").convert("L")
-        # Transform to tensor
+        # Transform to numpy array
         image = np.asarray(image).astype(np.float32)
+        # Add the "channel" dimension
+        image = np.expand_dims(image, axis=0)
         # Normalize it
         image /= 255
         if self.transform:

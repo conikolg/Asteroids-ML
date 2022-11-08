@@ -7,9 +7,6 @@ from torch.utils.data import DataLoader
 
 from util.asteroid_dataset import AsteroidDataset
 
-dataset = AsteroidDataset("./datasets/img", "./datasets/lbl.npy")
-dataloader = DataLoader(dataset, batch_size=1, shuffle=True, num_workers=0)
-
 
 # Show a random sample from the dataset
 # fig, ax = plt.subplots()
@@ -39,59 +36,67 @@ class Net(nn.Module):
 
 
 n_epochs = 3
-batch_size_train = 64
-batch_size_test = 1000
+batch_size_train = 16
+batch_size_test = 8
 learning_rate = 0.01
 momentum = 0.5
 log_interval = 10
 
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+dataset = AsteroidDataset("./datasets/img", "./datasets/lbl.npy")
+dataloader = DataLoader(dataset, batch_size=batch_size_train, shuffle=True, num_workers=0)
+
 network = Net()
+network.to(device)
 optimizer = optim.SGD(network.parameters(), lr=learning_rate,
                       momentum=momentum)
 train_losses = []
-train_counter = []
 test_losses = []
 test_counter = [i * len(dataset) for i in range(n_epochs + 1)]
 
 
 def train(epoch):
     network.train()
-    for batch_idx, (data, target) in enumerate(dataloader):
-        # print(batch_idx, data.shape, target.shape)
+    for batch_idx, (inputs, labels) in enumerate(dataloader):
+        inputs, labels = inputs.to(device), labels.to(device)
         optimizer.zero_grad()
-        # print(data.shape, data.dtype)
-        output = network(data)
-        # print(output, output.shape, output.dtype)
-        # print(target, target.shape, target.dtype)
-        # mse_loss = nn.MSELoss()
-        loss = F.mse_loss(output, target)
+        output = network(inputs)
+        loss = F.mse_loss(output, labels)
         loss.backward()
         optimizer.step()
         if batch_idx % log_interval == 0:
-            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                epoch, batch_idx * len(data), len(dataloader.dataset),
-                       100. * batch_idx / len(dataloader), loss.item()))
+            print(f"Train Epoch: {epoch} "
+                  f"[{batch_idx * len(inputs)}/{len(dataloader.dataset)} "
+                  f"({100. * batch_idx / len(dataloader):.0f}%)]\t"
+                  f"Loss: {loss.item():.6f}")
             train_losses.append(loss.item())
-            train_counter.append(
-                (batch_idx * 64) + ((epoch - 1) * len(dataloader.dataset)))
 
 
-for epoch in range(n_epochs):
-    train(epoch + 1)
+def main():
+    for epoch in range(n_epochs):
+        print(f"Starting epoch {epoch}...")
+        train(epoch + 1)
 
-# Show a random sample from the dataset
-network.eval()
-dataloader_test = DataLoader(dataset, batch_size=1, shuffle=True, num_workers=0)
-for _ in range(10):
-    fig, ax = plt.subplots()
+    # Show a random sample from the dataset
+    network.eval()
+    dataloader_test = DataLoader(dataset, batch_size=batch_size_test, shuffle=True, num_workers=0)
     img_test, bb1 = next(iter(dataloader_test))
-    # print(img_test.shape)
+    img_test, bb1 = img_test.to(device), bb1.to(device)
     with torch.no_grad():
-        bb2 = network(img_test)
+        bb2 = network(img_test).cpu()
         print(bb2)
-    ax.imshow(img_test[0], cmap='gray', vmin=0, vmax=1)
-    rect1 = patches.Rectangle(bb1[0, :2], bb1[0, 2], bb1[0, 3], linewidth=1, edgecolor='g', facecolor='none')
-    rect2 = patches.Rectangle(bb2[0, :2], bb2[0, 2], bb2[0, 3], linewidth=1, edgecolor='r', facecolor='none')
-    ax.add_patch(rect1)
-    ax.add_patch(rect2)
-plt.show()
+
+    img_test, bb1 = img_test.cpu(), bb1.cpu()
+    for idx in range(batch_size_test):
+        fig, ax = plt.subplots()
+        ax.imshow(img_test[idx, 0], cmap='gray', vmin=0, vmax=1)
+        rect1 = patches.Rectangle(bb1[idx, :2], bb1[idx, 2], bb1[idx, 3], linewidth=1, edgecolor='g', facecolor='none')
+        rect2 = patches.Rectangle(bb2[idx, :2], bb2[idx, 2], bb2[idx, 3], linewidth=1, edgecolor='r', facecolor='none')
+        ax.add_patch(rect1)
+        ax.add_patch(rect2)
+    plt.show()
+
+
+if __name__ == '__main__':
+    main()

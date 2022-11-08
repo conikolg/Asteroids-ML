@@ -23,9 +23,10 @@ class Net(nn.Module):
         # Input is 800x800
         self.conv1 = nn.Conv2d(in_channels=1, out_channels=4, kernel_size=4, stride=4)  # Outputs 4x200x200
         self.down_sample1 = nn.MaxPool2d(kernel_size=2, stride=2)  # Outputs 4x100x100
-        self.conv2 = nn.Conv2d(in_channels=4, out_channels=16, kernel_size=2, stride=2)  # Outputs 16x50x50
+        self.conv2 = nn.Conv2d(in_channels=self.conv1.out_channels, out_channels=16, kernel_size=2,
+                               stride=2)  # Outputs 16x50x50
         self.down_sample2 = nn.MaxPool2d(kernel_size=2, stride=2)  # Outputs 16x25x25
-        self.linear1 = nn.Linear(16 * 25 * 25, 4)
+        self.linear1 = nn.Linear(self.conv2.out_channels * 25 * 25, 4)
 
     def forward(self, x):
         x = F.relu(self.down_sample1(self.conv1(x)))
@@ -35,7 +36,7 @@ class Net(nn.Module):
         return x
 
 
-n_epochs = 3
+n_epochs = 1
 batch_size_train = 16
 batch_size_test = 8
 learning_rate = 0.01
@@ -82,19 +83,21 @@ def main():
     network.eval()
     dataloader_test = DataLoader(dataset, batch_size=batch_size_test, shuffle=True, num_workers=0)
     img_test, bb1 = next(iter(dataloader_test))
+    print(bb1)
     img_test, bb1 = img_test.to(device), bb1.to(device)
     with torch.no_grad():
         bb2 = network(img_test).cpu()
         print(bb2)
 
     img_test, bb1 = img_test.cpu(), bb1.cpu()
+    rows, cols = 2, batch_size_test // 2
+    fig, ax_arr = plt.subplots(rows, cols)
     for idx in range(batch_size_test):
-        fig, ax = plt.subplots()
-        ax.imshow(img_test[idx, 0], cmap='gray', vmin=0, vmax=1)
+        ax_arr[idx // cols, idx % cols].imshow(img_test[idx, 0], cmap='gray', vmin=0, vmax=1)
         rect1 = patches.Rectangle(bb1[idx, :2], bb1[idx, 2], bb1[idx, 3], linewidth=1, edgecolor='g', facecolor='none')
         rect2 = patches.Rectangle(bb2[idx, :2], bb2[idx, 2], bb2[idx, 3], linewidth=1, edgecolor='r', facecolor='none')
-        ax.add_patch(rect1)
-        ax.add_patch(rect2)
+        ax_arr[idx // cols, idx % cols].add_patch(rect1)
+        ax_arr[idx // cols, idx % cols].add_patch(rect2)
     plt.show()
 
 

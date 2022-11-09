@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -39,8 +40,8 @@ class Net(nn.Module):
         return x
 
 
-n_epochs = 20
-batch_size_train = 8
+n_epochs = 8
+batch_size_train = 16
 batch_size_test = 8
 learning_rate = 0.00001
 momentum = 0.5
@@ -77,17 +78,20 @@ def train(epochs):
                       f"Loss: {loss.item():.6f}")
                 train_losses.append(loss.item())
 
+    fig, ax = plt.figure(), plt.axes()
+    ax.plot(np.arange(len(train_losses)), train_losses)
+
 
 def test():
     # Show a random sample from the dataset
     network.eval()
     dataloader_test = DataLoader(dataset, batch_size=batch_size_test, shuffle=True, num_workers=0)
     img_test, bb1 = next(iter(dataloader_test))
-    print(bb1)
+    # print(bb1)
     img_test, bb1 = img_test.to(device), bb1.to(device)
     with torch.no_grad():
         bb2 = network(img_test).cpu()
-        print(bb2)
+        # print(bb2)
 
     img_test, bb1 = img_test.cpu(), bb1.cpu()
     rows, cols = 2, batch_size_test // 2

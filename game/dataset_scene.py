@@ -113,6 +113,12 @@ class DatasetScene:
         tasks += self.generate_dataset(int(self.num_images.value * 0.2), Path("./datasets/validation/"))
         for task in tasks:
             task.get()
+        tasks = [
+            self.mp_pool.apply_async(concat_labels, (Path(f"./datasets/{dataset}/"),))
+            for dataset in "train test validation".split()
+        ]
+        for task in tasks:
+            task.get()
         elapsed = (dt.now() - now).total_seconds()
         print(f"Done!\n"
               f"Image generation time: {elapsed} sec  (~{round(int(self.num_images.value * 1.5) / elapsed)} img/sec)")
@@ -156,4 +162,16 @@ def generate_images(start_idx: int, n: int, min_asteroids: int, max_asteroids: i
         labels[i - start_idx]: np.ndarray = game.bounding_boxes
 
     # Save the labels
-    np.save(str(data_dir / f"labels.npy"), labels)
+    np.save(str(data_dir / f"labels{start_idx}.npy"), labels)
+
+
+def concat_labels(data_dir: Path):
+    arrays: list = []
+    files = sorted(data_dir.iterdir())
+    for file in files:
+        if file.name.endswith(".npy"):
+            arrays.append(np.load(str(file)))
+            Path.unlink(file)
+
+    concat: np.ndarray = np.concatenate(arrays, axis=0)
+    np.save(str(data_dir / "labels.npy"), concat)

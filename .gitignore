@@ -239,3 +239,6 @@ fabric.properties
 
 # Contains machine learning datasets
 datasets
+
+# Playground Python file
+test.py

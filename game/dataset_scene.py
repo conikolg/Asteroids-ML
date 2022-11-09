@@ -1,6 +1,5 @@
-import io
 from datetime import datetime as dt
-from zipfile import ZipFile
+from pathlib import Path
 
 import numpy as np
 import pygame
@@ -54,7 +53,7 @@ class DatasetScene:
             text="Generate",
             rect=pygame.Rect(1120, 800, 200, 50),
             text_font=self.normal_font,
-            on_click_fn=self.generate_dataset
+            on_click_fn=self.generate_datasets
         )
 
         self.game.generate_asteroids((self.num_asteroid_textbox_min.value, self.num_asteroid_textbox_max.value))
@@ -100,25 +99,33 @@ class DatasetScene:
         screen.blit(self.test_generate_btn.render(), self.test_generate_btn.rect)
         screen.blit(self.generate_btn.render(), self.generate_btn.rect)
 
-    def generate_dataset(self):
+    def generate_datasets(self):
         now = dt.now()
+        print("Generating training images...")
+        self.generate_dataset(self.num_images.value, Path("./datasets/train/"))
+        print("Generating testing images...")
+        self.generate_dataset(int(self.num_images.value * 0.3), Path("./datasets/test/"))
+        print("Generating validation images...")
+        self.generate_dataset(int(self.num_images.value * 0.2), Path("./datasets/validation/"))
+        print(f"generation time={(dt.now() - now).total_seconds()}s")
+
+    def generate_dataset(self, num_images: int, data_dir: Path):
+        # Make the folders as necessary
+        (data_dir / "images").mkdir(parents=True, exist_ok=True)
 
         # Holding place for bounding box labels
-        labels = np.zeros(shape=(self.num_images.value, self.num_asteroid_textbox_min.value, 4))
+        labels = np.zeros(shape=(num_images, self.num_asteroid_textbox_min.value, 4))
 
         # New game object to ease offloading into new thread/process
         game: GameScene = GameScene()
-        for i in range(self.num_images.value):
+        for i in range(num_images):
             # Generate/export image
             game.generate_asteroids((self.num_asteroid_textbox_min.value, self.num_asteroid_textbox_max.value))
             img: pygame.Surface = game.render(pygame.Surface((800, 800)))
-            pygame.image.save(img, f"./datasets/img/img{i}.png")
+            pygame.image.save(img, data_dir / f"images/img{i}.png")
 
             # Record label
             labels[i]: np.ndarray = game.bounding_boxes
 
         # Save the labels
-        np.save("datasets/lbl.npy", labels)
-
-        # Output statistics
-        print(f"{labels.shape=}    time={(dt.now() - now).total_seconds()}s")
+        np.save(str(data_dir / f"labels.npy"), labels)

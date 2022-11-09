@@ -1,3 +1,4 @@
+import multiprocessing
 from datetime import datetime as dt
 from pathlib import Path
 
@@ -58,6 +59,8 @@ class DatasetScene:
 
         self.game.generate_asteroids((self.num_asteroid_textbox_min.value, self.num_asteroid_textbox_max.value))
 
+        self.mp_pool = multiprocessing.Pool()
+
     def handle_events(self, events: list[pygame.event.Event]):
         self.game.handle_events(events)
         self.num_images.handle_events(events, consume_events=False)
@@ -101,31 +104,56 @@ class DatasetScene:
 
     def generate_datasets(self):
         now = dt.now()
-        print("Generating training images...")
-        self.generate_dataset(self.num_images.value, Path("./datasets/train/"))
-        print("Generating testing images...")
-        self.generate_dataset(int(self.num_images.value * 0.3), Path("./datasets/test/"))
-        print("Generating validation images...")
-        self.generate_dataset(int(self.num_images.value * 0.2), Path("./datasets/validation/"))
-        print(f"generation time={(dt.now() - now).total_seconds()}s")
+        tasks: list = []
+        print("Generating images... ", end="")
+        tasks += self.generate_dataset(self.num_images.value, Path("./datasets/train/"))
+        # print("Generating testing images...")
+        tasks += self.generate_dataset(int(self.num_images.value * 0.3), Path("./datasets/test/"))
+        # print("Generating validation images...")
+        tasks += self.generate_dataset(int(self.num_images.value * 0.2), Path("./datasets/validation/"))
+        for task in tasks:
+            task.get()
+        elapsed = (dt.now() - now).total_seconds()
+        print(f"Done!\n"
+              f"Image generation time: {elapsed} sec  (~{round(int(self.num_images.value * 1.5) / elapsed)} img/sec)")
 
-    def generate_dataset(self, num_images: int, data_dir: Path):
+    def generate_dataset(self, num_images: int, data_dir: Path) -> list:
         # Make the folders as necessary
         (data_dir / "images").mkdir(parents=True, exist_ok=True)
+        # Segment into chunks of 100 images and queue to processing pool
+        batch_size: int = 100
+        tasks: list[multiprocessing.pool.AsyncResult] = [
+            self.mp_pool.apply_async(
+                func=generate_images,
+                args=(idx,
+                      batch_size if idx + batch_size <= num_images else num_images - idx,
+                      self.num_asteroid_textbox_min.value,
+                      self.num_asteroid_textbox_max.value,
+                      data_dir)
+            )
+            for idx in range(0, num_images, batch_size)
+        ]
 
-        # Holding place for bounding box labels
-        labels = np.zeros(shape=(num_images, self.num_asteroid_textbox_min.value, 4))
+        return tasks
 
-        # New game object to ease offloading into new thread/process
-        game: GameScene = GameScene()
-        for i in range(num_images):
-            # Generate/export image
-            game.generate_asteroids((self.num_asteroid_textbox_min.value, self.num_asteroid_textbox_max.value))
-            img: pygame.Surface = game.render(pygame.Surface((800, 800)))
-            pygame.image.save(img, data_dir / f"images/img{i}.png")
 
-            # Record label
-            labels[i]: np.ndarray = game.bounding_boxes
+def generate_images(start_idx: int, n: int, min_asteroids: int, max_asteroids: int, data_dir: Path):
+    # New processes need to reinit pygame
+    pygame.init()
+    screen = pygame.display.set_mode((1, 1))
+    # Holding place for bounding box labels
+    labels = np.zeros(shape=(n, min_asteroids, 4))
 
-        # Save the labels
-        np.save(str(data_dir / f"labels.npy"), labels)
+    # New game object to ease offloading into new thread/process
+    game: GameScene = GameScene()
+    for i in range(start_idx, start_idx + n):
+        # Generate/export image
+        game.generate_asteroids((min_asteroids, max_asteroids))
+        img: pygame.Surface = game.render(pygame.Surface((800, 800)))
+        pygame.image.save(img, data_dir / f"images/img{i}.png")
+
+        # Record label
+        labels[i - start_idx]: np.ndarray = game.bounding_boxes
+
+    # Save the labels
+    np.save(str(data_dir / f"labels.npy"), labels)

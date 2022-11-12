@@ -34,9 +34,6 @@ class Net(nn.Module):
         return x
 
 
-n_epochs = 6
-batch_size_train = 32
-batch_size_test = 8
 learning_rate = 0.00001
 momentum = 0.5
 log_interval = 1
@@ -53,14 +50,15 @@ loss_ax: matplotlib.axes.Axes
 
 
 def train(epoch_id):
+    batch_size: int = 128
     train_dataset = AsteroidDataset("./datasets/train/images", "./datasets/train/labels.npy")
-    train_dataloader = DataLoader(train_dataset, batch_size=batch_size_train, shuffle=True, num_workers=0)
+    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
     prev_line_length = 0
     start_time = datetime.now()
 
     network.train()
     epoch_loss = 0
-    for batch_idx, (inputs, labels) in enumerate(train_dataloader):
+    for batch, (inputs, labels) in enumerate(train_dataloader):
         inputs, labels = inputs.to(device), labels.to(device)
         optimizer.zero_grad()
         output = network(inputs)
@@ -68,10 +66,10 @@ def train(epoch_id):
         epoch_loss += loss.item()
         loss.backward()
         optimizer.step()
-        if batch_idx % log_interval == 0:
+        if batch % log_interval == 0:
             log_line = f"Training Epoch {epoch_id} " \
-                       f"[samples {batch_idx * batch_size_train} - {(batch_idx + 1) * batch_size_train} / {len(train_dataset)} " \
-                       f"({100. * batch_idx * batch_size_train / len(train_dataset):.0f}%)] \t" \
+                       f"[samples {batch * batch_size} - {(batch + 1) * batch_size} / {len(train_dataset)} " \
+                       f"({100. * batch * batch_size / len(train_dataset):.0f}%)] \t" \
                        f"Batch Loss: {loss.item():.3f} \t" \
                        f"Epoch Loss: {epoch_loss:.3f}"
             if len(log_line) < prev_line_length:
@@ -88,24 +86,25 @@ def train(epoch_id):
 
 
 def test():
-    # Show random samples from the dataset
+    batch_size: int = 64
+
     network.eval()
     epoch_loss = 0
     test_dataset = AsteroidDataset("./datasets/test/images", "./datasets/test/labels.npy")
-    test_dataloader = DataLoader(test_dataset, batch_size=batch_size_test, shuffle=True, num_workers=0)
+    test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
     prev_line_length = 0
     start_time = datetime.now()
 
     with torch.no_grad():
-        for batch_idx, (inputs, labels) in enumerate(test_dataloader):
+        for batch, (inputs, labels) in enumerate(test_dataloader):
             inputs, labels = inputs.to(device), labels.to(device)
             output = network(inputs)
             loss = F.mse_loss(output, labels)
             epoch_loss += loss.item()
-            if batch_idx % log_interval == 0:
+            if batch % log_interval == 0:
                 log_line = f"Testing Epoch " \
-                           f"[samples {batch_idx * batch_size_test} - {(batch_idx + 1) * batch_size_test} / {len(test_dataset)} " \
-                           f"({100. * batch_idx * batch_size_test / len(test_dataset):.0f}%)] \t" \
+                           f"[samples {batch * batch_size} - {(batch + 1) * batch_size} / {len(test_dataset)} " \
+                           f"({100. * batch * batch_size / len(test_dataset):.0f}%)] \t" \
                            f"Batch Loss: {loss.item():.3f} \t" \
                            f"Epoch Loss: {epoch_loss:.3f}"
                 if len(log_line) < prev_line_length:
@@ -122,18 +121,19 @@ def test():
 
 
 def show_examples():
+    batch_size: int = 16
     network.eval()
     validation_dataset = AsteroidDataset("./datasets/validation/images", "./datasets/validation/labels.npy")
-    validation_dataloader = DataLoader(validation_dataset, batch_size=batch_size_test, shuffle=True, num_workers=0)
+    validation_dataloader = DataLoader(validation_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
     img_test, bb1 = next(iter(validation_dataloader))
     img_test, bb1 = img_test.to(device), bb1.to(device)
     with torch.no_grad():
         bb2 = network(img_test).cpu()
 
     img_test, bb1 = img_test.cpu(), bb1.cpu()
-    rows, cols = 2, batch_size_test // 2
+    rows, cols = 2, batch_size // 2
     fig, ax_arr = plt.subplots(rows, cols)
-    for idx in range(batch_size_test):
+    for idx in range(batch_size):
         ax_arr[idx // cols, idx % cols].imshow(img_test[idx, 0], cmap='gray', vmin=0, vmax=1)
         rect1 = patches.Rectangle(bb1[idx, :2], bb1[idx, 2], bb1[idx, 3], linewidth=1, edgecolor='g', facecolor='none')
         rect2 = patches.Rectangle(bb2[idx, :2], bb2[idx, 2], bb2[idx, 3], linewidth=1, edgecolor='r', facecolor='none')
@@ -142,6 +142,7 @@ def show_examples():
 
 
 def main():
+    n_epochs: int = 10
     for i in range(n_epochs):
         train(i + 1)
         test()

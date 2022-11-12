@@ -1,4 +1,5 @@
 import multiprocessing
+import re
 from datetime import datetime as dt
 from pathlib import Path
 
@@ -169,7 +170,7 @@ def concat_labels(data_dir: Path):
     arrays: list = []
     files = sorted(data_dir.iterdir())
     for file in files:
-        if file.name.endswith(".npy"):
+        if re.fullmatch(r"labels\d+\.npy", file.name):
             arrays.append(np.load(str(file)))
             Path.unlink(file)
 

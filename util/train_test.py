@@ -8,28 +8,47 @@ import torch.nn.functional as F
 import torch.optim as optim
 from matplotlib import pyplot as plt, patches
 from torch.utils.data import DataLoader
+from torchinfo import summary
 
 from util.asteroid_dataset import AsteroidDataset
 
 
 # Define model
+class ConvBnMaxPool(nn.Module):
+    def __init__(self,
+                 in_channels: int, out_channels: int,
+                 conv_kernel_size: int, conv_stride: int,
+                 mp_kernel_size: int, mp_stride: int,
+                 activation_fn=F.relu):
+        super(ConvBnMaxPool, self).__init__()
+        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=conv_kernel_size, stride=conv_stride)
+        self.bn = nn.BatchNorm2d(num_features=self.conv.out_channels)
+        self.max_pool = nn.MaxPool2d(kernel_size=mp_kernel_size, stride=mp_stride)
+        self.activation_fn = activation_fn
+
+    @property
+    def out_channels(self):
+        return self.conv.out_channels
+
+    def forward(self, x: torch.Tensor):
+        return self.max_pool(self.activation_fn(self.bn(self.conv(x))))
+
+
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
         # Input is 1x800x800
-        self.conv1 = nn.Conv2d(in_channels=1, out_channels=16, kernel_size=11, stride=5)
-        self.conv1_bn = nn.BatchNorm2d(num_features=self.conv1.out_channels)
-        self.down_sample1 = nn.MaxPool2d(kernel_size=3, stride=2)
-        self.conv2 = nn.Conv2d(in_channels=self.conv1.out_channels, out_channels=64, kernel_size=5, stride=3)
-        self.conv2_bn = nn.BatchNorm2d(num_features=self.conv2.out_channels)
-        self.down_sample2 = nn.MaxPool2d(kernel_size=3, stride=1)
-        self.linear1 = nn.Linear(self.conv2.out_channels * 23 * 23, 4)
+        self.conv1 = ConvBnMaxPool(1, 4, 7, 5, 3, 2)
+        self.conv2 = ConvBnMaxPool(self.conv1.out_channels, 8, 5, 3, 3, 2)
+        self.conv3 = ConvBnMaxPool(self.conv2.out_channels, 16, 3, 1, 3, 1)
+        self.linear1 = nn.Linear(self.conv3.out_channels * 8 * 8, 4)
 
     def forward(self, x: torch.Tensor):
-        x = self.down_sample1(F.relu(self.conv1_bn(self.conv1(x))))
-        x = self.down_sample2(F.relu(self.conv2_bn(self.conv2(x))))
+        x = self.conv1(x)
+        x = self.conv2(x)
+        x = self.conv3(x)
         # print(x.shape)
-        x = x.view(-1, self.conv2.out_channels * 23 * 23)
+        x = x.view(-1, self.linear1.in_features)
         x = self.linear1(x)
         return x
 
@@ -142,6 +161,8 @@ def show_examples():
 
 
 def main():
+    print(summary(network, input_size=(1, 1, 800, 800), verbose=0), end="\n\n")
+
     n_epochs: int = 10
     for i in range(n_epochs):
         train(i + 1)

@@ -38,9 +38,9 @@ class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
         # Input is 1x800x800
-        self.conv1 = ConvBnMaxPool(1, 4, 7, 5, 3, 2)
-        self.conv2 = ConvBnMaxPool(self.conv1.out_channels, 8, 5, 3, 3, 2)
-        self.conv3 = ConvBnMaxPool(self.conv2.out_channels, 16, 3, 1, 3, 1)
+        self.conv1 = ConvBnMaxPool(1, 16, 7, 5, 3, 2)
+        self.conv2 = ConvBnMaxPool(self.conv1.out_channels, 32, 5, 3, 3, 2)
+        self.conv3 = ConvBnMaxPool(self.conv2.out_channels, 64, 3, 1, 3, 1)
         self.linear1 = nn.Linear(self.conv3.out_channels * 8 * 8, 4)
 
     def forward(self, x: torch.Tensor):
@@ -54,7 +54,7 @@ class Net(nn.Module):
 
 
 learning_rate = 0.00001
-momentum = 0.5
+momentum = 0.9
 log_interval = 1
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -68,8 +68,36 @@ loss_fig, loss_ax = plt.figure(), plt.axes()
 loss_ax: matplotlib.axes.Axes
 
 
+def intersection_over_union(ax1: int, ay1: int, ax2: int, ay2: int, bx1: int, by1: int, bx2: int, by2: int) -> int:
+    area_of_a = (ay2 - ay1) * (ax2 - ax1)
+    area_of_b = (by2 - by1) * (bx2 - bx1)
+
+    # calculate x overlap
+    left = max(ax1, bx1)
+    right = min(ax2, bx2)
+    x_overlap = right - left
+
+    # calculate y overlap
+    top = min(ay2, by2)
+    bottom = max(ay1, by1)
+    y_overlap = top - bottom
+
+    area_of_overlap = 0
+    # if the rectangles overlap each other, then calculate
+    # the area of the overlap
+    if x_overlap > 0 and y_overlap > 0:
+        area_of_overlap = x_overlap * y_overlap
+
+    # area_of_overlap is counted twice when in the summation of
+    # area_of_a and area_of_b, so we need to subtract it from the
+    # total, to get the total area covered by both the rectangles
+    total_area = area_of_a + area_of_b - area_of_overlap
+
+    return total_area
+
+
 def train(epoch_id):
-    batch_size: int = 128
+    batch_size: int = 32
     train_dataset = AsteroidDataset("./datasets/train/images", "./datasets/train/labels.npy")
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
     prev_line_length = 0
@@ -105,7 +133,7 @@ def train(epoch_id):
 
 
 def test():
-    batch_size: int = 64
+    batch_size: int = 32
 
     network.eval()
     epoch_loss = 0
@@ -163,7 +191,7 @@ def show_examples():
 def main():
     print(summary(network, input_size=(1, 1, 800, 800), verbose=0), end="\n\n")
 
-    n_epochs: int = 10
+    n_epochs: int = 6
     for i in range(n_epochs):
         train(i + 1)
         test()
